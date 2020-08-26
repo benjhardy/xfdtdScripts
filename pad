@@ -1,0 +1,9 @@
+function pad (str, max) {
+	// function pad: adds zeros to the beginning of a string
+	// str: the initial string to add zeroes to
+	// max: the string length  
+	// Useful for simulation numbers for directories
+	// Simulation numbers for directories go up to 6 digits (i.e. 000003 , 000127, 000035)
+	str = str.toString();
+	return str.length < max ? pad("0" + str, max) : str;
+}

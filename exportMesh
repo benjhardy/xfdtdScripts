@@ -1,0 +1,21 @@
+function exportMesh(simNumber,runNumber, frequency, outputDirectory)
+{ // function exportMesh(simNumber,runNumber, frequency, outputDirectory)
+  // exports the mesh to a directory
+  // INPUTS:
+  // simNumber (string or int) - Simulation Number, (usually 1, NOTE:simulation has to be created in order for there to be mesh parameters)
+  // runNumber (string or int) - run Number, usually 1
+  // frequency (int) - frequency in Hz
+  // outputDirectory (string) - where to save the output file mesh_X.mat 
+
+  // adapted from this code:
+  // var proj = App.getActiveProject().getProjectDirectory()
+  // var rundir = proj + "/Simulations/000001/Run0001";
+  // ResultUtils.exportMesh(rundir,298000000,"H:/newGeometries/fixed_ellipse_data/mesh_1.mat")
+
+	var proj = App.getActiveProject().getProjectDirectory();
+	var rundir = proj + "/Simulations/" + pad(simNumber,6) + "/Run" + pad(runNumber,4);
+	prin(("Exporting mesh for: " + rundir))
+	ResultUtils.exportMesh(rundir,frequency,(outputDirectory + "/mesh_" + simNumber + ".mat"))
+	prin("Exported")
+
+}
