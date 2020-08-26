@@ -1,0 +1,45 @@
+function createSim(type,loopNumber)
+{ // Create a simulation
+  // type (string) - string to describe the simulation
+  // loopNumber (int or string) - loop number to add
+	var simId = "000000";
+	// Create and Run Simulation
+	//First set the simulation data
+	var simData = App.getActiveProject().getNewSimulationData();
+	// These should already be set, however just to make sure the current project is set up correctly
+	simData.excitationType = NewSimulationData.DiscreteSources;
+	simData.enableSParameters = false;
+	simData.name = "type:" + type + " L#" + loopNumber;
+	simData.notes = type + loopNumber;
+	// Set convergence threshold to -40 dB, and maximum number of timesteps to 11000000.
+	var terminationCriteria = simData.getTerminationCriteria();
+	terminationCriteria.convergenceThreshold = -40;
+	terminationCriteria.setMaximumSimulationTime( "11000000*timestep" );
+	terminationCriteria.setEnableConvergence(true);
+	terminationCriteria.setEnableFlatlineDetection(true);
+	terminationCriteria.setUseProjectCriteria(0);
+
+	// set it just in case
+	simData.setTerminationCriteria(terminationCriteria)
+
+	// Collect steady-state data
+	simData.getFOIParameters().collectSteadyStateData = true;
+	// Create the simulation
+	// true - add to simulation queue and begin running simulation 
+	// false - dont add to queue
+	var simulation = App.getActiveProject().createSimulation( true );  
+	Output.println( "Successfully created the simulation:" + simData.name );
+	Output.println( "Simulation Path = " + simulation.getSimulationPath() );
+
+	var simulationId = simulation.getSimulationId();
+	Output.println( "Simulation Id = " + simulationId  );
+
+	simId = simulationId;
+
+	// clear variables
+	simId = [];
+	simData = [];
+	terminationCriteria = [];
+	simulation = [];  
+	simulationId = [];
+}

@@ -1,0 +1,37 @@
+function addCylinder(h, rad, center)
+{
+	// Create a Cylinder
+	
+	cyl = new Cylinder(h, rad)
+	cyl.setSolid(0)
+	prin(cyl.isSheet());
+	var r = new Recipe();
+	var m = new Model();
+	r.append(cyl);
+
+	// add a translation
+	// translate it half the way of z...
+	var t = new Translate(Cartesian3D(center.x,center.y,+center.z - parseInt(h)/200))
+	r.append(t);
+
+	// add the cylinder
+	m.setRecipe(r);
+	var GA = App.getActiveProject().getGeometryAssembly();
+	m.name = "Cylinder: SHEET"
+
+	// set Material for the Cu
+    //var CuMaterial = App.getActiveProject().getMaterialList().getMaterial( "Copper (Pure) [ND]" );
+    //if( null == CuMaterial )
+    //{
+    //    Output.println( "\"Copper (Pure) [ND]\" material was not found..." );
+    //}
+    //else
+    //{
+    //    App.getActiveProject().setMaterial( m, CuMaterial );
+    //}
+	
+	GA.append( m );
+	return m;
+
+
+}

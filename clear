@@ -1,0 +1,13 @@
+var proj = App.getActiveProject();
+proj.getCircuitComponentList().clear();
+proj.getGraphList().clear()
+proj.getGeometryAssembly().clear();
+proj.getCircuitComponentDefinitionList().clear();
+proj.getWaveformList().clear();
+var projGA = proj.getGeometryAssembly();
+
+
+for(var i=0; i<128; i++)
+{
+projGA.remove(i);
+}

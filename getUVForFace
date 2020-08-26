@@ -1,0 +1,69 @@
+function getUVForFace( ei, pos )
+{	// used with newWrap
+	var returnVal = new Object;
+	var rd = new RelativePositionOnFace( ei, 0, 0 );
+	var u = new OptimizationVariable( 0, 1 );
+	var v = new OptimizationVariable( 0, 1 );
+	var variables = new Array( u,v );
+
+	var numVariables = 2;
+	variables[ 0 ] = u;
+	variables[ 1 ] = v;
+
+	var params = new ParticleSwarmParameters;
+	params.setObjective( params.Minimize );
+	params.setNumberOfParticles( 100 );
+
+	var maxIterations = 50;
+	params.setApproximateMaxIterations( maxIterations );
+	params.setNeighborhood( 5 );
+
+	var optimizer =	new ParticleSwarm;
+	Output.println( "Params " + params + "Variables " + variables );
+	optimizer.createAndInitializeSwarm( params, variables );
+
+	var it = 0;
+	var objectiveValues = new Array;
+	objectiveValues.length = variables.length;
+
+	var bestValue = 100;
+
+	while( it < maxIterations && bestValue > 1e-12 )
+    {		
+		for( var s = 0; s < params.getNumberOfParticles(); ++s )
+		{
+			var solution = optimizer.getCurrentSolution( s );
+			var objectiveValue = 0;
+
+
+			if( solution.size() > 1 )
+			{
+				var pu = solution.getValue(0);
+				var pv = solution.getValue(1);
+				rd.setParameters( Cartesian2D( pu, pv ) );
+				var solutionC3d = rd.asCartesian3D();
+				var sum = 0;
+				var tmp = solutionC3d.x - pos.x;
+				sum += ( tmp * tmp );
+				tmp = solutionC3d.y - pos.y;
+				sum += ( tmp * tmp );
+				tmp = solutionC3d.z - pos.z;
+				sum += ( tmp * tmp );
+
+				objectiveValue = sum;
+			}
+			
+			objectiveValues[s] = objectiveValue;
+		}
+		optimizer.iterate( objectiveValues );
+		++it;
+	}
+	
+	var bestSolution = optimizer.getCurrentBestSolution();
+	var bestValue = optimizer.getCurrentBestObjectiveValue();
+	Output.println( "Best objective value: " + bestValue );
+	var bestValues = bestSolution.getValues();
+	returnVal.u = bestValues[ 0 ];
+	returnVal.v = bestValues[ 1 ];
+	return returnVal;
+}

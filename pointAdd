@@ -1,0 +1,5 @@
+function pointAdd(cart,x,y,z)
+{   // adds values to a Cartesian3D point returns a Cartesian3D
+	var point = Cartesian3D(+cart.x + x, +cart.y + y, +cart.z + z)
+	return point;
+}

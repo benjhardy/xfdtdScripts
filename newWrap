@@ -1,0 +1,97 @@
+function newWrap(partPosInGA, targetPosInGA, cart, dist)
+{ // wrap feature class: wraps a sheet around another sheet geometry
+	var part = App.getActiveProject().getGeometryAssembly().at(partPosInGA);
+	var target = App.getActiveProject().getGeometryAssembly().at(targetPosInGA);
+
+	//The location on the target that the wrap is applied at.
+	//var coordX = "-30 mm";
+	//var coordY = "0 mm";
+	//var coordZ = "30 mm";
+	var coordX = cart.x;
+	var coordY = cart.y;
+	var coordZ = cart.z;
+
+	var center = target.getBoundingBox().getCenter();
+
+	//Output.println(center)
+	var partsAssembly = new Assembly();
+	partsAssembly.name = "Added Elements";
+
+	//create base part and recipe
+	var part2 = part.clone();
+	var recipe = part2.getRecipe();
+	var elementPos = new Cartesian3D(coordX, coordY, coordZ);
+	var elementDir = new Cartesian3D(coordX, coordY, 0);
+	Output.println( "Element direction: " + coordX + " " + coordY );
+	var coord = new CoordinateSystem(elementPos, elementDir, new Cartesian3D(0, 0, 1));
+	part2.setCoordinateSystem(coord);
+
+	//Wrap the pattern to the target
+	var wrapPattern = new WrapSheet();
+	wrapPattern.setTargetPart(target);
+	wrapPattern.setSourceOrientation(CoordinateSystem());
+	
+	var localPosition = target.getCoordinateSystem().transformPosition( elementPos, CoordinateSystem.GlobalToLocal );
+	var localDirection = target.getCoordinateSystem().transformDirection( elementDir, CoordinateSystem.GlobalToLocal );
+
+	var rayStart;
+	var rayDirection;
+	// This code assumes object is axis aligned and coordinates are going to be wrapped onto a cylinder-like object
+	// oriented along the Z-axis.  The reason for this assumption is it is required to know which direction to offset
+	// The elementPos in order to correctly shoot a ray to pick position/normal/face id.
+	var bb = target.getBoundingBox();
+	var centerAtZHeight = bb.getCenter();
+	centerAtZHeight.z = localPosition.z;
+
+	rayStart = ( MathUtils.add( MathUtils.sub( localPosition, centerAtZHeight ), localPosition ) ).clone();
+	rayDirection = ( MathUtils.sub( centerAtZHeight, localPosition ) ).clone();
+
+	var normals = target.getFaceNormals( rayStart, rayDirection, 0 );
+	var positions = target.getFacePositions( rayStart, rayDirection, 0 );
+	Output.println( "normals length: " + normals.length );
+
+	var newX = Number(localPosition.x) + Number(localDirection.x)
+	var newY = Number(localPosition.y) + Number(localDirection.y)
+	var newZ = Number(localPosition.z) + Number(localDirection.z)
+	var newPos = new Cartesian3D(newX, newY, newZ)
+	var invertedNormal = new Cartesian3D( normals[ 0 ].x, normals [ 0 ].y, normals[ 0 ].z );
+	invertedNormal.mult( "-1" )
+	var faceId = target.pickFace( rayStart, rayDirection, 1 ); // This needs to do the actual picking
+
+	if( faceId.length == 0 )
+	{
+    	throw( faceId + ", Can not find a face id" );	
+	}
+
+	for( var i = 0 ;i < normals.length ; ++i )
+	{
+    	normals[ i ] = part2.getCoordinateSystem().transformDirection( target.getCoordinateSystem().transformDirection( normals[ i ], CoordinateSystem.LocalToGlobal ), CoordinateSystem.GlobalToLocal );
+    	positions[ i ] = part2.getCoordinateSystem().transformPosition( target.getCoordinateSystem().transformPosition( positions[ i ], CoordinateSystem.LocalToGlobal ), CoordinateSystem.GlobalToLocal 		);
+	}
+
+	for( var i = 0 ;i < positions.length ; ++i )
+	{
+    	Output.println( "Positions(mod): " + positions[ i ] );
+    	Output.println( "Normals(mod): " + normals[ i ] );
+	}
+	var ei = new EntityIdentifier( target, faceId );
+
+	var uv = getUVForFace( ei.clone(), positions[ 0 ] );
+	Output.println( "U:" + uv.u );
+	Output.println( "V:" + uv.v );	
+
+	recipe.append(wrapPattern);
+
+	wrapPattern = recipe.getFeature( recipe.getFeatureCount() - 1 );
+	var targetCs = new CoordinateSystem(positions[0], new RelativeDirectionNormalToFace( ei.clone(), uv.u, uv.v ), new Cartesian3D(0, 0, 1));
+	wrapPattern.setTargetOrientation( targetCs );
+
+	// thicken the sheet as well.
+	var ts = new ThickenSheet(dist);
+	recipe.append(ts);
+	
+	part2.name = part2.name + "-WRAPPED"
+
+	App.getActiveProject().getGeometryAssembly().append(part2);
+	App.getActiveProject().getGeometryAssembly().remove(partPosInGA);
+}

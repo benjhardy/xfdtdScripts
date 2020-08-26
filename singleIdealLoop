@@ -1,0 +1,201 @@
+function SingleIdealLoop(center, angle, type, circFlag)
+{	// function SingleIdealLoop(center, angle, type, circFlag)
+	// center - Cartesian3D
+	// rotation - (int) radians - rotation around center
+	// type - "rho", "phi", or if neither "z" denotes the cylindrical coordinate the normal to the face of the loop points
+	// circFlag - (true or false) - adds a circuit or not
+	
+    var mc = new Sketch();
+    var r = Recipe();
+    var m = new Model();
+
+    var x = center.x;
+    var y = center.y;
+    var z = center.z;
+    // first sketch the extrude
+    //center for each arc since its somewhat ellipsoidal...
+    var center1 = new Cartesian3D(+x + .0005,y,z);
+    var center2 = new Cartesian3D(+x - .0005,y,z);
+	
+
+    // arcs for the extrude itself
+    var outer1 = new Arc(center1, "10 mm", -Math.PI/2, Math.PI/2);
+    var inner1 = new Arc(center1, "8.5 mm", -Math.PI/2, Math.PI/2);
+    var outer2 = new Arc(center2, "10 mm", Math.PI/2, -Math.PI/2);
+    var inner2 = new Arc(center2, "8.5 mm", Math.PI/2, -Math.PI/2);
+
+    //top lines
+    //....................will need to generalize? probz in 3D
+    tl11 = new Cartesian3D(+center1.x,+center1.y + .010, +center1.z);
+    tl12 = new Cartesian3D(+center2.x,+center2.y + .010, +center1.z);
+    tl21 = new Cartesian3D(+center1.x,+center1.y + .0085, +center1.z);
+    tl22 = new Cartesian3D(+center2.x, +center.y + .0085, +center1.z);
+    bl1 = new Cartesian3D(+center1.x,+center1.y - .0085, +center1.z)
+    bl2 = new Cartesian3D(+center2.x, +center.y - .0085, +center1.z)
+    bl21 = new Cartesian3D(+center1.x,+center1.y - .01, +center1.z)
+    bl22 = new Cartesian3D(+center2.x, +center.y - .010, +center1.z)
+    topline1 = new Line(tl11,tl21);
+    topline2 = new Line(tl12,tl22);
+    bottline = new Line(bl1,bl21);
+    bottline2 = new Line(bl2,bl22)
+
+    mc.addEdge(outer1);
+    mc.addEdge(inner1);
+    mc.addEdge(outer2);
+    mc.addEdge(inner2);
+    mc.addEdge(topline1);
+    mc.addEdge(topline2);
+    mc.addEdge(bottline);
+    mc.addEdge(bottline2)
+
+    // COPPPER
+    // with a 35um thickness
+    var CuThickness = .001;
+    var centerCu = new Cartesian3D(center.x,center.y,+center.z + +CuThickness/2);
+    // EXTRUDE Cu
+    // Add an Extrude to the sketch
+    var dir = new CoordinateSystemDirection(0,0,1);
+    var CuExtr = new Extrude(mc, CuThickness, dir);
+    r.append(CuExtr);
+
+
+
+    // ROTATION about center append to recipe
+    // Rotate
+    if (angle != 0)
+    {
+        
+        //Cu Rotation
+        var coordir = new CoordinateSystemDirection(0,0,1);
+        var rotCenter = new CoordinateSystemPosition(+centerCu.x,+centerCu.y,+centerCu.z);
+        var Rotation = new Rotate(angle,rotCenter,coordir);
+        r.append(Rotation);
+    }
+    //By default the code creates type z loops, these next rotations are for the orthogonality
+    if (type == "rho")
+    {
+        //Cu Rotation
+        var coordir = new CoordinateSystemDirection(- +center.y, +center.x, 0);
+        var rotCenter = new CoordinateSystemPosition(+centerCu.x,+centerCu.y,+centerCu.z);
+        var Rotation = new Rotate(-Math.PI/2,rotCenter,coordir);
+        r.append(Rotation);
+    }
+    if (type == "phi")
+    {
+        //Cu Rotation
+        var coordir = new CoordinateSystemDirection(+center.x,+center.y,0);
+        var rotCenter = new CoordinateSystemPosition(+centerCu.x,+centerCu.y,+centerCu.z+ +CuThickness/2);
+        var Rotation = new Rotate(-Math.PI/2,rotCenter,coordir);
+        r.append(Rotation);
+    }
+
+    // Set Recipe for model
+    m.setRecipe(r);
+    m.name = "Cu Loop";
+
+    // set Material for the Cu
+    var CuMaterial = App.getActiveProject().getMaterialList().getMaterial( "Copper (Pure) [ND]" );
+    if( null == CuMaterial )
+    {
+        Output.println( "\"Copper (Pure) [ND]\" material was not found..." );
+    }
+    else
+    {
+        App.getActiveProject().setMaterial( m, CuMaterial );
+    }
+
+
+    App.getActiveProject().getGeometryAssembly().append( m );
+    View.zoomToExtents();
+
+    // End a Cu loop
+
+
+    if (circFlag == true)
+    {
+       
+        // CIRCUIT STUFF
+        // Now to add Circuit Components for the loop
+        var waveformList = App.getActiveProject().getWaveformList();
+        var waveform = new Waveform();
+        var s = new RampedSinusoidWaveformShape();
+        s.setFrequency(".298 GHz");
+        // s.setPhase = "0"
+        waveform.setWaveformShape( s );
+        waveform.name = ".298 GHz Sin 0 Phase";
+        var waveformInList = waveformList.addWaveform( waveform );
+
+        // Create our Feed *** not linked to waveform yet
+        var feed = new Feed();
+        feed.feedType = Feed.Current; // Set its type enumeration to be Voltage.
+        // Define a 50-ohm resistance for this feed
+        var rlc = new RLCSpecification();
+        rlc.setResistance( "50 ohm" );
+        rlc.setCapacitance( "0" );
+        rlc.setInductance( "0" );
+        feed.setImpedanceSpecification( rlc );
+
+
+        // links the feed to the specified waveform
+        feed.setWaveform( waveformInList  );
+        feed.name = "50-ohm Current Source";
+        // Add it to the current project.
+        App.getActiveProject().getCircuitComponentDefinitionList().addCircuitComponentDefinition( feed );
+
+        
+
+        // add them to the geometry
+
+
+        //Bottom Feed
+        var eid5 = new EntityIdentifier( m, "face:Extrude(lateral,edge5,extrude_path)");
+        var eid6 = new EntityIdentifier( m, "face:Extrude(lateral,edge4,extrude_path)");
+
+        var Pos5 = new RelativePositionAtCenterOfPlanarFace( eid5 );
+        var Pos6 = new RelativePositionAtCenterOfPlanarFace( eid6 );
+
+        var PC5 = Pos5.asCartesian3D();
+        var PC6 = Pos6.asCartesian3D();
+
+        var P5 = new CoordinateSystemPosition(PC5.x,PC5.y,PC5.z);
+        var P6 = new CoordinateSystemPosition(PC6.x,PC6.y,PC6.z);
+
+        //Top Feed
+        var eid5 = new EntityIdentifier( m, "face:Extrude(lateral,edge6,extrude_path)");
+        var eid6 = new EntityIdentifier( m, "face:Extrude(lateral,edge7,extrude_path)");
+
+        var Pos5 = new RelativePositionAtCenterOfPlanarFace( eid5 );
+        var Pos6 = new RelativePositionAtCenterOfPlanarFace( eid6 );
+
+        var PC5 = Pos5.asCartesian3D();
+        var PC6 = Pos6.asCartesian3D();
+
+        var P7 = new CoordinateSystemPosition(PC5.x,PC5.y,PC5.z);
+        var P8 = new CoordinateSystemPosition(PC6.x,PC6.y,PC6.z);
+
+
+        //Bottom Feed placement
+        var component = new CircuitComponent();
+        component.name = "Bottom Sinusoidal Current Source"
+        component.setAsPort( true );
+        // (This script requires a pre-existing circuit component definition)
+        var componentDefinitionList = App.getActiveProject().getCircuitComponentDefinitionList();
+        var componentDefinition = componentDefinitionList.getCircuitComponentDefinition( feed.name );
+        component.setCircuitComponentDefinition( componentDefinition );
+        component.setEndpoint1( P5 );
+        component.setEndpoint2( P6 );
+        var componentList = App.getActiveProject().getCircuitComponentList();
+        componentList.addCircuitComponent( component );
+
+        //Top Feed placement
+        var component = new CircuitComponent();
+        component.name = "Top Sinusoidal Current Source"
+        component.setAsPort( true );
+        // (This script requires a pre-existing circuit component definition)
+        component.setCircuitComponentDefinition( componentDefinition );
+        component.setEndpoint1( P7 );
+        component.setEndpoint2( P8 );
+        componentList.addCircuitComponent( component );
+    }
+
+}

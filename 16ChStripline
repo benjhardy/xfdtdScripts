@@ -1,0 +1,225 @@
+// 16 element stripline
+// test script to add stripline elements roughly based on the stripline - in this paper:
+// https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4040521/
+// cartesian center points for each strip line element
+// in meters
+var x = [0.1535,    0.1920,    0.2197 ,   0.2300 ,   0.2197  ,  0.1920  ,  0.1535 ,   0.1100 ,   0.0665  ,  0.0280  ,  0.0003 ,  -0.0100  ,  0.0003 ,   0.0280 ,   0.0665 ,   0.1100];
+var y = [0.1839 ,   0.1627 ,   0.1286  ,  0.0860  ,  0.0434 ,   0.0093 ,  -0.0119 ,  -0.0190 ,  -0.0119  ,  0.0093 ,   0.0434 ,   0.0860  ,  0.1286  ,  0.1627 ,   0.1839 ,   0.1910];
+// elliptical points for the shield
+var shx = [0.1584 ,   0.2016,    0.2331  ,  0.2450  ,  0.2331   , 0.2016   , 0.1584  ,  0.1100  ,  0.0616 ,   0.0184 ,  -0.0131  , -0.0250,  -0.0131 ,   0.0184  ,  0.0616,    0.1100];
+var shy = [0.1934 ,   0.1705,    0.1332 ,   0.0860 ,   0.0388,    0.0015,   -0.0214 ,  -0.0290 , -0.0214  ,  0.0015 ,   0.0388  ,  0.0860 ,   0.1332,   0.1705  ,  0.1934,   0.2010];
+var z = .078;
+// these are just the arctan of non transformed y./x in radians
+var angle = [1.1530,    0.7518,    0.3704,         0,   -0.3704,   -0.7518,   -1.1530,    1.5708,    1.1530,    0.7518,    0.3704,         0,   -0.3704,   -0.7518,   -1.1530,    1.5708];
+var angle_sh = [1.1476   , 0.7450   , 0.3662      ,  0 ,  -0.3662 ,  -0.7450 ,  -1.1476 ,   1.5708 ,   1.1476  ,  0.7450,    0.3662   ,      0  , -0.3662 ,  -0.7450 ,  -1.1476 ,   1.5708];
+for (var i=0; i< x.length ; i++) //using 10 and 50 as different spots
+    {
+		// model, sketch, yada, yada
+		var s = new Sketch();
+		var sh = new Sketch();
+		var r = Recipe();
+		var r_sh = Recipe();
+		var m = new Model();
+		var m_sh = new Model();
+		// put them into one assembly
+		var A = new Assembly();
+
+		
+		// StripLine Stuff
+		// cartesian 3d lines
+		a = new Cartesian3D(x[i],y[i]+.01,z +.075);
+		b = new Cartesian3D(x[i],y[i]+.01,z -.075);
+		c = new Cartesian3D(x[i],y[i]-.01,z +.075);
+		d = new Cartesian3D(x[i],y[i]-.01,z -.075);
+
+		// lines
+		l1 = new Line(a,b);
+		l2 = new Line(b,d);
+		l3 = new Line(d,c);
+		l4 = new Line(c,a);
+
+		s.addEdge(l1);
+		s.addEdge(l2);
+		s.addEdge(l3);
+		s.addEdge(l4);
+		// Shield stuff
+		// cartesian 3d lines
+		a = new Cartesian3D(shx[i],shy[i]+.02,z +.075);
+		b = new Cartesian3D(shx[i],shy[i]+.02,z -.075);
+		c = new Cartesian3D(shx[i],shy[i]-.02,z +.075);
+		d = new Cartesian3D(shx[i],shy[i]-.02,z -.075);
+
+		// lines
+		l1 = new Line(a,b);
+		l2 = new Line(b,d);
+		l3 = new Line(d,c);
+		l4 = new Line(c,a);
+
+		sh.addEdge(l1);
+		sh.addEdge(l2);
+		sh.addEdge(l3);
+		sh.addEdge(l4);
+
+		
+
+		// COPPPER strip thickness
+		var CuThickness = .001;
+		var centerCu = new Cartesian3D(x[i]+ +CuThickness/2,y[i],z);
+		// EXTRUDE Cu Strip
+		// Add an Extrude to the sketch
+    	var dir = new CoordinateSystemDirection(1,0,0);
+    	var CuExtr = new Extrude(s, CuThickness, dir);
+    	r.append(CuExtr);
+		
+		// COPPPER SHIELD thickness
+		var ShieldThickness = .0005;
+		var centerShield = new Cartesian3D(shx[i]+ +ShieldThickness/2,shy[i],z);
+		// EXTRUDE Cu Shield
+		// Add an Extrude to the sketch
+    	var dir = new CoordinateSystemDirection(1,0,0);
+    	var CuExtr = new Extrude(sh, ShieldThickness, dir);
+    	r_sh.append(CuExtr);
+
+		
+
+		// ROTATION about center append to recipe
+    	// Rotate
+    	if (angle[i] != 0)
+    	{
+        
+        	//Cu strip Rotation
+        	var coordir = new CoordinateSystemDirection(0,0,1);
+        	var rotCenter = new CoordinateSystemPosition(+centerCu.x,+centerCu.y,+centerCu.z);
+        	var Rotation = new Rotate(angle[i],rotCenter,coordir);
+        	r.append(Rotation);
+
+			//Cu SHIELD Rotation
+        	var coordir = new CoordinateSystemDirection(0,0,1);
+        	var rotCenter = new CoordinateSystemPosition(+centerShield.x,+centerShield.y,+centerShield.z);
+        	var Rotation = new Rotate(angle_sh[i],rotCenter,coordir);
+        	r_sh.append(Rotation);
+    	}
+
+		
+
+		// Set Recipe for model STRIPLINE
+    	m.setRecipe(r);
+    	m.name = "Cu StripLine";
+
+    	// set Material for the Cu strip
+    	var CuMaterial = App.getActiveProject().getMaterialList().getMaterial( "Copper (Pure) [ND]" );
+    	if( null == CuMaterial )
+    	{
+        	Output.println( "\"Copper (Pure) [ND]\" material was not found..." );
+    	}
+    	else
+    	{
+        	App.getActiveProject().setMaterial( m, CuMaterial );
+    	}
+	
+		// Set Recipe for model SHIELD
+    	m_sh.setRecipe(r_sh);
+    	m_sh.name = "Cu Shield";
+
+    	// set Material for the Cu shield
+    	if( null == CuMaterial )
+    	{
+        	Output.println( "\"Copper (Pure) [ND]\" material was not found..." );
+    	}
+    	else
+    	{
+        	App.getActiveProject().setMaterial( m_sh, CuMaterial );
+    	}
+
+		A.append(m);
+		A.append(m_sh);
+		var assem = "StripLine Coil #" + i.toString();
+		A.name = assem;
+
+    	App.getActiveProject().getGeometryAssembly().append( A );
+    	View.zoomToExtents();
+
+		
+		// CIRCUIT STUFF
+        // Now to add Circuit Components for the loop
+        var waveformList = App.getActiveProject().getWaveformList();
+        var waveform = new Waveform();
+        var s = new RampedSinusoidWaveformShape();
+        s.setFrequency(".298 GHz");
+        // s.setPhase = "0"
+        waveform.setWaveformShape( s );
+        waveform.name = ".298 GHz Sin 0 Phase";
+        var waveformInList = waveformList.addWaveform( waveform );
+
+        // Create our Feed *** not linked to waveform yet
+        var feed = new Feed();
+        feed.feedType = Feed.Current; // Set its type enumeration to be Voltage.
+        // Define a 50-ohm resistance for this feed
+        var rlc = new RLCSpecification();
+        rlc.setResistance( "50 ohm" );
+        rlc.setCapacitance( "0" );
+        rlc.setInductance( "0" );
+        feed.setImpedanceSpecification( rlc );
+
+
+        // links the feed to the specified waveform
+        feed.setWaveform( waveformInList  );
+        feed.name = "50-ohm Current Source";
+        // Add it to the current project.
+        App.getActiveProject().getCircuitComponentDefinitionList().addCircuitComponentDefinition( feed );
+
+		// add them to the geometry
+		
+		
+
+        //Bottom Feed
+        var eid5 = new EntityIdentifier( m, "face:Extrude(lateral,edge1,extrude_path)");
+        var eid6 = new EntityIdentifier( m_sh, "face:Extrude(lateral,edge1,extrude_path)");
+
+        var Pos5 = new RelativePositionAtCenterOfPlanarFace( eid5 );
+        var Pos6 = new RelativePositionAtCenterOfPlanarFace( eid6 );
+
+        var PC5 = Pos5.asCartesian3D();
+        var PC6 = Pos6.asCartesian3D();
+
+        var P5 = new CoordinateSystemPosition(PC5.x,PC5.y,PC5.z);
+        var P6 = new CoordinateSystemPosition(PC6.x,PC6.y,PC6.z);
+
+        //Top Feed
+        var eid5 = new EntityIdentifier( m_sh, "face:Extrude(lateral,edge3,extrude_path)");
+        var eid6 = new EntityIdentifier( m, "face:Extrude(lateral,edge3,extrude_path)");
+
+        var Pos5 = new RelativePositionAtCenterOfPlanarFace( eid5 );
+        var Pos6 = new RelativePositionAtCenterOfPlanarFace( eid6 );
+
+        var PC5 = Pos5.asCartesian3D();
+        var PC6 = Pos6.asCartesian3D();
+
+        var P7 = new CoordinateSystemPosition(PC5.x,PC5.y,PC5.z);
+        var P8 = new CoordinateSystemPosition(PC6.x,PC6.y,PC6.z);
+
+
+        //Bottom Feed placement
+        var component = new CircuitComponent();
+        component.name = "Bottom Sinusoidal Current Source"
+        component.setAsPort( true );
+        // (This script requires a pre-existing circuit component definition)
+        var componentDefinitionList = App.getActiveProject().getCircuitComponentDefinitionList();
+        var componentDefinition = componentDefinitionList.getCircuitComponentDefinition( feed.name );
+        component.setCircuitComponentDefinition( componentDefinition );
+        component.setEndpoint1( P5 );
+        component.setEndpoint2( P6 );
+        var componentList = App.getActiveProject().getCircuitComponentList();
+        componentList.addCircuitComponent( component );
+
+        //Top Feed placement
+        var component = new CircuitComponent();
+        component.name = "Top Sinusoidal Current Source"
+        component.setAsPort( true );
+        // (This script requires a pre-existing circuit component definition)
+        component.setCircuitComponentDefinition( componentDefinition );
+        component.setEndpoint1( P7 );
+        component.setEndpoint2( P8 );
+        componentList.addCircuitComponent( component );
+		
+	}
